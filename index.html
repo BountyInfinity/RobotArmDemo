@@ -1,0 +1,192 @@
+<!DOCTYPE HTML>
+
+<head>
+    <title>Terminal Velocity | Robot Arm Demo</title>
+    <style>
+        body {
+            text-align: center;
+        }
+
+        #container {
+            width: 80%;
+            height: 80vh;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            top: 50%;
+            left: 50%;
+            margin: 0px;
+            float: left;
+        }
+
+        #sliders {
+            text-align: center;
+        }
+
+        .sliderContainer {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Terminal Velocity | Robot Arm Demo</h1>
+    <div id="container">
+        <canvas id="demo_canvas" style="border: 1px solid black; float: left"></canvas>
+        <div id="sliders" style="border: 1px solid black; float: right">
+            <div class="sliderContainer"> 
+                <h3>Arm 1 Length</h3>
+                <p id="L1Tag"></p>
+                <input type="range" min="1" max="400" value="50" style="width: 100px" id="L1_input">
+            </div>
+            <div class="sliderContainer"> 
+                <h3>Arm 2 Length</h3>
+                <p id="L2Tag"></p>
+                <input type="range" min="1" max="400" value="50" style="width: 100px" id="L2_input">
+            </div>
+            <div class="sliderContainer"> 
+                <h3>Arm Base X</h3>
+                <p id="xiTag"></p>
+                <input type="range" min="1" max="400" value="50" style="width: 100px" id="xi_input">
+            </div>
+            <div class="sliderContainer"> 
+                <h3>Arm Base Y</h3>
+                <p id="yiTag"></p>
+                <input type="range" min="1" max="400" value="50" style="width: 100px" id="yi_input">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("demo_canvas");
+        const ctx = canvas.getContext("2d");
+
+        const container = document.getElementById("container");
+        const sliders = document.getElementById("sliders");
+
+        sliders.style.width = (container.offsetWidth * 0.20) + "px";
+        sliders.style.height = container.offsetHeight + "px";
+
+        canvas.width = container.offsetWidth * 0.75;
+        canvas.height = container.offsetHeight;
+
+        window.innerWidth = canvas.width;
+        window.innerHeight = canvas.height;
+
+        const L1_input = document.getElementById("L1_input");
+        const L2_input = document.getElementById("L2_input");
+        const xi_input = document.getElementById("xi_input");
+        const yi_input = document.getElementById("yi_input");
+
+        const L1Tag = document.getElementById("L1Tag");
+        const L2Tag = document.getElementById("L2Tag");
+        const xiTag = document.getElementById("xiTag");
+        const yiTag = document.getElementById("yiTag");
+
+        L1_input.min = 50;
+        L1_input.value = 200;
+        L1_input.max = 400;
+
+        L2_input.min = 50;
+        L2_input.value = 200;
+        L2_input.max = 400;
+
+        xi_input.min = 50;
+        xi_input.value = 200;
+        xi_input.max = 400;
+
+        yi_input.min = 50;
+        yi_input.value = 200;
+        yi_input.max = 400;
+
+        const RADIANS_TO_DEGREES = 180.0 / Math.PI;
+
+        let L1 = 200;
+        let L2 = 200;
+
+        let xi = 200;
+        let yi = 200;
+
+        updateInputsAndTags();
+
+        function updateInputsAndTags() {
+            L1 = +L1_input.value;
+            L1Tag.innerHTML = L1;
+
+            L2 = +L2_input.value;
+            L2Tag.innerHTML = L2;
+
+            xi = +xi_input.value;
+            xiTag.innerHTML = xi;
+
+            yi = +yi_input.value;
+            yiTag.innerHTML = yi;
+        }
+
+        function getMousePosition(canvas, event) {
+            let rect = canvas.getBoundingClientRect();
+            let x = event.clientX - rect.left;
+            let y = window.innerHeight - (event.clientY - rect.top);
+            return [x - xi, y - yi];
+        }
+
+        function getPosition(radians, length) {
+            return [length  * Math.cos(radians), length * Math.sin(radians)];
+        }
+
+        function drawLine(x, y, length, radians, width, color) {
+            ctx.lineWidth = width;
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(x, window.innerHeight - y);
+            ctx.lineTo(x + (length * Math.cos(radians)), window.innerHeight - (y + (length * Math.sin(radians))));
+            ctx.stroke();
+        }
+
+        function drawArc(x, y, radius, startAngle, endAngle, counterclockwise, width, color) {
+            ctx.lineWidth = width;
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, window.innerHeight - y, radius, startAngle, endAngle, counterclockwise);
+            ctx.stroke();
+        }
+
+        function drawText(text, x, y, width, color) {
+            ctx.lineWidth = width;
+            ctx.strokeStyle = color;
+            ctx.font = "15px Arial";
+            ctx.fillText(text, x, window.innerHeight - y);
+        }
+
+        document.addEventListener('mousemove', (event) => {
+            updateInputsAndTags();
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let mousePosition = getMousePosition(canvas, event);
+            let maxPosition = getPosition(Math.atan2(mousePosition[1], mousePosition[0]), L1 + L2 - 0.00000001); //avoids floating point errors
+
+            if (Math.abs(mousePosition[0]) > Math.abs(maxPosition[0]) || Math.abs(mousePosition[1]) > Math.abs(maxPosition[1])) {
+                mousePosition = maxPosition;
+            }
+
+            let L3 = Math.sqrt(Math.pow(mousePosition[0], 2) + Math.pow(mousePosition[1], 2));
+
+            let L1sq = L1 * L1;
+            let L2sq = L2 * L2;
+            let L3sq = L3 * L3;
+
+            let r0 = Math.acos((L1sq + L3sq - L2sq) / (2 * L1 * L3)) + Math.atan2(mousePosition[1], mousePosition[0]);
+            let r1 = Math.acos((L1sq + L2sq - L3sq) / (2 * L1 * L2));
+            
+            drawLine(xi, yi, L1, r0, 10, "red");
+            drawLine(L1 * Math.cos(r0) + xi, L1 * Math.sin(r0) + yi, L2, (r0 + r1 - Math.PI), 10, "green");
+
+            drawArc(xi, yi, 20, 0, -r0, true, 3, "black");
+            drawArc(L1 * Math.cos(r0) + xi, L1 * Math.sin(r0) + yi, 20, -r0 - Math.PI, -(r0 + r1 - Math.PI), true, 3, "black");
+
+
+            drawText((r0 * RADIANS_TO_DEGREES).toFixed(2) + '°', xi + 25, yi + 10, 1, "black");
+            drawText((r1 * RADIANS_TO_DEGREES).toFixed(2) + '°', L1 * Math.cos(r0) + xi + 10, L1 * Math.sin(r0) + yi - 30, 2, "black");
+        });
+    </script>
+</body>
