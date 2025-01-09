@@ -1,7 +1,7 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 
 <head>
-    <title>Terminal Velocity | Robot Arm Demo</title>
+    <title>Terminal Velocity | Robot Arm Simulation</title>
     <style>
         body {
             text-align: center;
@@ -24,44 +24,55 @@
 
         .sliderContainer {
             border: 1px solid black;
+            padding: 0px;
+        }
+
+        .tag {
+            margin: 5px;
         }
     </style>
 </head>
 
 <body>
-    <h1>Terminal Velocity | Robot Arm Demo</h1>
+    <h1>Terminal Velocity | Robot Arm Simulation</h1>
     <div id="container">
-        <canvas id="demo_canvas" style="border: 1px solid black; float: left"></canvas>
+        <canvas id="canvas" style="border: 1px solid black; float: left"></canvas>
         <div id="sliders" style="border: 1px solid black; float: right">
             <div class="sliderContainer"> 
-                <h3>Arm 1 Length</h3>
-                <p id="L1Tag"></p>
+                <h3 class="tag">Arm 1 Length</h3>
+                <p id="L1Tag" class="tag"></p>
                 <input type="range" min="1" max="400" value="50" style="width: 100px" id="L1_input">
             </div>
             <div class="sliderContainer"> 
-                <h3>Arm 2 Length</h3>
-                <p id="L2Tag"></p>
+                <h3 class="tag">Arm 2 Length</h3>
+                <p id="L2Tag" class="tag"></p>
                 <input type="range" min="1" max="400" value="50" style="width: 100px" id="L2_input">
             </div>
             <div class="sliderContainer"> 
-                <h3>Arm Base X</h3>
-                <p id="xiTag"></p>
+                <h3 class="tag">Arm Base X</h3>
+                <p id="xiTag" class="tag"></p>
                 <input type="range" min="1" max="400" value="50" style="width: 100px" id="xi_input">
             </div>
             <div class="sliderContainer"> 
-                <h3>Arm Base Y</h3>
-                <p id="yiTag"></p>
+                <h3 class="tag">Arm Base Y</h3>
+                <p id="yiTag" class="tag"></p>
                 <input type="range" min="1" max="400" value="50" style="width: 100px" id="yi_input">
+            </div>
+            <div class="sliderContainer"> 
+                <h3 class="tag">Arm Follows Cursor</h3>
+                <input style="width: 30px; height: 30px;" type="checkbox" id="cursorFollowCheckbox" checked>
             </div>
         </div>
     </div>
 
     <script>
-        const canvas = document.getElementById("demo_canvas");
+        const canvas = document.getElementById("canvas");
         const ctx = canvas.getContext("2d");
 
         const container = document.getElementById("container");
         const sliders = document.getElementById("sliders");
+
+        const cursorCheckbox = document.getElementById("cursorFollowCheckbox");
 
         sliders.style.width = (container.offsetWidth * 0.20) + "px";
         sliders.style.height = container.offsetHeight + "px";
@@ -83,43 +94,53 @@
         const yiTag = document.getElementById("yiTag");
 
         L1_input.min = 50;
-        L1_input.value = 200;
         L1_input.max = 400;
+        L1_input.value = 200;
 
         L2_input.min = 50;
-        L2_input.value = 200;
         L2_input.max = 400;
+        L2_input.value = 200;
 
         xi_input.min = 50;
-        xi_input.value = 200;
         xi_input.max = 400;
+        xi_input.value = 200;
 
         yi_input.min = 50;
-        yi_input.value = 200;
         yi_input.max = 400;
+        yi_input.value = 200;
 
         const RADIANS_TO_DEGREES = 180.0 / Math.PI;
 
-        let L1 = 200;
-        let L2 = 200;
+        let L1;
+        let L2;
 
-        let xi = 200;
-        let yi = 200;
+        let xi;
+        let yi;
+
+        let mousePosition = [200, 200];
 
         updateInputsAndTags();
 
         function updateInputsAndTags() {
             L1 = +L1_input.value;
-            L1Tag.innerHTML = L1;
+            if (+L1Tag.innerHTML != +L1_input.value) {
+                L1Tag.innerHTML = L1_input.value
+            }
 
             L2 = +L2_input.value;
-            L2Tag.innerHTML = L2;
+            if (+L2Tag.innerHTML != +L2_input.value) {
+                L2Tag.innerHTML = L2_input.value
+            }
 
             xi = +xi_input.value;
-            xiTag.innerHTML = xi;
+            if (+xiTag.innerHTML != +xi_input.value) {
+                xiTag.innerHTML = xi_input.value
+            }
 
             yi = +yi_input.value;
-            yiTag.innerHTML = yi;
+            if (+yiTag.innerHTML != +yi_input.value) {
+                yiTag.innerHTML = yi_input.value
+            }
         }
 
         function getMousePosition(canvas, event) {
@@ -150,43 +171,54 @@
             ctx.stroke();
         }
 
-        function drawText(text, x, y, width, color) {
+        function drawText(text, x, y, size, width, color) {
             ctx.lineWidth = width;
-            ctx.strokeStyle = color;
-            ctx.font = "15px Arial";
-            ctx.fillText(text, x, window.innerHeight - y);
+            ctx.fillStyle = color;
+            ctx.font = size + "px Arial";
+            
+            ctx.fillText(text, x - ctx.measureText(text).width / 2, window.innerHeight - y);
         }
 
         document.addEventListener('mousemove', (event) => {
+            mousePosition = getMousePosition(canvas, event);
+        });
+
+        setInterval(function() {
             updateInputsAndTags();
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            let mousePosition = getMousePosition(canvas, event);
-            let maxPosition = getPosition(Math.atan2(mousePosition[1], mousePosition[0]), L1 + L2 - 0.00000001); //avoids floating point errors
+            let targetPosition = cursorCheckbox.checked ? mousePosition : [300, 200];
 
-            if (Math.abs(mousePosition[0]) > Math.abs(maxPosition[0]) || Math.abs(mousePosition[1]) > Math.abs(maxPosition[1])) {
-                mousePosition = maxPosition;
+            let maxPosition = getPosition(Math.atan2(targetPosition[1], targetPosition[0]), L1 + L2 - 0.00000001); //avoids floating point errors
+
+            if (Math.abs(targetPosition[0]) > Math.abs(maxPosition[0]) || Math.abs(targetPosition[1]) > Math.abs(maxPosition[1])) {
+                drawText("Unable to Reach", canvas.width / 2, canvas.height / 1.2, 75, 30, "red");
+                targetPosition = maxPosition;
             }
 
-            let L3 = Math.sqrt(Math.pow(mousePosition[0], 2) + Math.pow(mousePosition[1], 2));
+            let L3 = Math.sqrt(Math.pow(targetPosition[0], 2) + Math.pow(targetPosition[1], 2));
 
             let L1sq = L1 * L1;
             let L2sq = L2 * L2;
             let L3sq = L3 * L3;
 
-            let r0 = Math.acos((L1sq + L3sq - L2sq) / (2 * L1 * L3)) + Math.atan2(mousePosition[1], mousePosition[0]);
+            let r0 = Math.acos((L1sq + L3sq - L2sq) / (2 * L1 * L3)) + Math.atan2(targetPosition[1], targetPosition[0]);
             let r1 = Math.acos((L1sq + L2sq - L3sq) / (2 * L1 * L2));
             
+            if (isNaN(r0) || isNaN(r1)) {
+                drawText("Not Possible", canvas.width / 2, canvas.height / 2, 100, 30, "red");
+                return;    
+            }
+
             drawLine(xi, yi, L1, r0, 10, "red");
             drawLine(L1 * Math.cos(r0) + xi, L1 * Math.sin(r0) + yi, L2, (r0 + r1 - Math.PI), 10, "green");
 
             drawArc(xi, yi, 20, 0, -r0, true, 3, "black");
             drawArc(L1 * Math.cos(r0) + xi, L1 * Math.sin(r0) + yi, 20, -r0 - Math.PI, -(r0 + r1 - Math.PI), true, 3, "black");
 
-
-            drawText((r0 * RADIANS_TO_DEGREES).toFixed(2) + '°', xi + 25, yi + 10, 1, "black");
-            drawText((r1 * RADIANS_TO_DEGREES).toFixed(2) + '°', L1 * Math.cos(r0) + xi + 10, L1 * Math.sin(r0) + yi - 30, 2, "black");
-        });
+            drawText((r0 * RADIANS_TO_DEGREES).toFixed(2) + '°', xi + 45, yi + 15, 15, 1, "black");
+            drawText((r1 * RADIANS_TO_DEGREES).toFixed(2) + '°', L1 * Math.cos(r0) + xi + 45, L1 * Math.sin(r0) + yi - 30, 15, 2, "black");            
+        }, 10);
     </script>
 </body>
