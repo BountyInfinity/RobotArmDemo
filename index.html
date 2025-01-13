@@ -1,30 +1,61 @@
 <!DOCTYPE html>
 
 <head>
+     <meta name="viewport" content="initial-scale=1.0, user-scalable=no"/>
     <title>Terminal Velocity | Robot Arm Simulation</title>
+
     <style>
         body {
             text-align: center;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+
+        #canvas {
+            float: left;
+            width: 100%;
+            height: 100vh;
+            margin: none;
+            padding: none;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            top: 50%;
+            left: 50%;
         }
 
         #container {
-            width: 80%;
-            height: 80vh;
+            width: 90%;
+            height: 60vh;
             position: absolute;
             transform: translate(-50%, -50%);
             top: 50%;
             left: 50%;
             margin: 0px;
             float: left;
+            border: 1px solid #ff0000;
         }
 
-        #sliders {
+        #inputs {
+            float: right;
+        }
+
+        #inputs_left {
+            float: left;
             text-align: center;
+            overflow: auto;
         }
 
-        .sliderContainer {
+        #inputs_right {
+            float: right;
+            text-align: center;
+            overflow: auto;
+        }
+
+        .inputContainer {
             border: 1px solid black;
             padding: 0px;
+            <!--background-color: #fff;-->
         }
 
         .tag {
@@ -35,32 +66,45 @@
 
 <body>
     <h1>Terminal Velocity | Robot Arm Simulation</h1>
+    <canvas id="canvas"></canvas>
     <div id="container">
-        <canvas id="canvas" style="border: 1px solid black; float: left"></canvas>
-        <div id="sliders" style="border: 1px solid black; float: right">
-            <div class="sliderContainer"> 
-                <h3 class="tag">Arm 1 Length</h3>
-                <p id="L1Tag" class="tag"></p>
-                <input type="range" min="1" max="400" value="50" style="width: 100px" id="L1_input">
+        
+        <div id="inputs">
+            <div id="inputs_left">
+                <div class="inputContainer"> 
+                    <h3 class="tag">Arm Follows Cursor</h3>
+                    <input style="width: 30px; height: 30px;" type="checkbox" id="cursorFollowCheckbox" checked>
+                </div>
+                <div id="setStartingPosition" class="inputContainer" style="display: none">
+                    <h3 class="tag">Set Starting Position</h3>
+                    <button onclick="controllingStartingCrosshair = !controllingStartingCrosshair">Set Starting Position</button>
+                </div>
+                <div id="setEndingPosition" class="inputContainer" style="display: none"> 
+                    <h3 class="tag">Set Ending Position</h3>
+                    <button onclick="controllingEndingCrosshair = !controllingEndingCrosshair">Set Ending Position</button>
+                </div>
             </div>
-            <div class="sliderContainer"> 
-                <h3 class="tag">Arm 2 Length</h3>
-                <p id="L2Tag" class="tag"></p>
-                <input type="range" min="1" max="400" value="50" style="width: 100px" id="L2_input">
-            </div>
-            <div class="sliderContainer"> 
-                <h3 class="tag">Arm Base X</h3>
-                <p id="xiTag" class="tag"></p>
-                <input type="range" min="1" max="400" value="50" style="width: 100px" id="xi_input">
-            </div>
-            <div class="sliderContainer"> 
-                <h3 class="tag">Arm Base Y</h3>
-                <p id="yiTag" class="tag"></p>
-                <input type="range" min="1" max="400" value="50" style="width: 100px" id="yi_input">
-            </div>
-            <div class="sliderContainer"> 
-                <h3 class="tag">Arm Follows Cursor</h3>
-                <input style="width: 30px; height: 30px;" type="checkbox" id="cursorFollowCheckbox" checked>
+            <div id="inputs_right">
+                <div class="inputContainer"> 
+                    <h3 class="tag">Arm 1 Length</h3>
+                    <p id="L1Tag" class="tag"></p>
+                    <input type="range" min="1" max="400" value="50" style="width: 100px" id="L1_input">
+                </div>
+                <div class="inputContainer"> 
+                    <h3 class="tag">Arm 2 Length</h3>
+                    <p id="L2Tag" class="tag"></p>
+                    <input type="range" min="1" max="400" value="50" style="width: 100px" id="L2_input">
+                </div>
+                <div class="inputContainer"> 
+                    <h3 class="tag">Arm Base X</h3>
+                    <p id="xiTag" class="tag"></p>
+                    <input type="range" min="1" max="400" value="50" style="width: 100px" id="xi_input">
+                </div>
+                <div class="inputContainer"> 
+                    <h3 class="tag">Arm Base Y</h3>
+                    <p id="yiTag" class="tag"></p>
+                    <input type="range" min="1" max="400" value="50" style="width: 100px" id="yi_input">
+                </div>
             </div>
         </div>
     </div>
@@ -70,15 +114,23 @@
         const ctx = canvas.getContext("2d");
 
         const container = document.getElementById("container");
-        const sliders = document.getElementById("sliders");
+        const inputs = document.getElementById("inputs");
+        const inputs_left = document.getElementById("inputs_left");
+        const inputs_right = document.getElementById("inputs_right");
 
-        const cursorCheckbox = document.getElementById("cursorFollowCheckbox");
+        const set_starting_position = document.getElementById("setStartingPosition");
+        const set_ending_position = document.getElementById("setEndingPosition");
 
-        sliders.style.width = (container.offsetWidth * 0.20) + "px";
-        sliders.style.height = container.offsetHeight + "px";
+        const cursor_checkbox = document.getElementById("cursorFollowCheckbox");
 
-        canvas.width = container.offsetWidth * 0.75;
-        canvas.height = container.offsetHeight;
+        inputs.style.width = (container.offsetWidth * 0.3) + "px";
+        inputs.style.height = container.offsetHeight + "px";
+
+        inputs_left.style.width = (inputs.offsetWidth * 0.5) + "px";
+        inputs_right.style.width = (inputs.offsetWidth * 0.5) + "px";
+
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
 
         window.innerWidth = canvas.width;
         window.innerHeight = canvas.height;
@@ -92,6 +144,18 @@
         const L2Tag = document.getElementById("L2Tag");
         const xiTag = document.getElementById("xiTag");
         const yiTag = document.getElementById("yiTag");
+
+        let controllingStartingCrosshair = false;
+        let controllingEndingCrosshair = false;
+
+        let startingCrosshairPlaced = false;
+        let endingCrosshairPlaced = false;
+
+        let startingCrosshairPosition;
+        let endingCrosshairPosition;
+
+        let invalidStartingCrosshairPosition = false;
+        let invalidEndingCrosshairPosition = false;
 
         L1_input.min = 50;
         L1_input.max = 400;
@@ -141,13 +205,21 @@
             if (+yiTag.innerHTML != +yi_input.value) {
                 yiTag.innerHTML = yi_input.value
             }
+
+            if (!cursor_checkbox.checked && (set_starting_position.style.display == "none" || set_ending_position.style.display == "none")) {
+                set_starting_position.style.display =  "";
+                set_ending_position.style.display =  "";
+            } else if (cursor_checkbox.checked && (set_starting_position.style.display == "" || set_ending_position.style.display == "")) {
+                set_starting_position.style.display =  "none";
+                set_ending_position.style.display =  "none";
+            }
         }
 
         function getMousePosition(canvas, event) {
             let rect = canvas.getBoundingClientRect();
             let x = event.clientX - rect.left;
             let y = window.innerHeight - (event.clientY - rect.top);
-            return [x - xi, y - yi];
+            return [x, y];
         }
 
         function getPosition(radians, length) {
@@ -179,8 +251,68 @@
             ctx.fillText(text, x - ctx.measureText(text).width / 2, window.innerHeight - y);
         }
 
+        function drawCrosshair(pos, color) {
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.arc(pos[0], window.innerHeight - pos[1], 15, 0, 2 * Math.PI, true);
+
+            ctx.lineWidth = 2;
+            ctx.rect(pos[0] - 1, window.innerHeight - (pos[1] + 20), 2, 15);
+            ctx.rect(pos[0] - 1, window.innerHeight - (pos[1] - 5), 2, 15);
+
+            ctx.rect(pos[0] - 20, window.innerHeight - (pos[1] + 1), 15, 2);
+            ctx.rect(pos[0] + 5, window.innerHeight - (pos[1] + 1), 15, 2);
+            ctx.stroke();
+        }
+
+        function isValidPosition(pos, L1, L2) {
+            let maxPosition = getPosition(Math.atan2(pos[1], pos[0]), L1 + L2 - 0.00000001); //avoids floating point errors
+
+            if (Math.abs(pos[0]) > Math.abs(maxPosition[0]) || Math.abs(pos[1]) > Math.abs(maxPosition[1])) {
+                return false;
+            }
+
+            let L3 = Math.sqrt(Math.pow(pos[0], 2) + Math.pow(pos[1], 2));
+
+            let L1sq = L1 * L1;
+            let L2sq = L2 * L2;
+            let L3sq = L3 * L3;
+
+            let r0 = Math.acos((L1sq + L3sq - L2sq) / (2 * L1 * L3)) + Math.atan2(pos[1], pos[0]);
+            let r1 = Math.acos((L1sq + L2sq - L3sq) / (2 * L1 * L2));
+            
+            return !(isNaN(r0) || isNaN(r1));
+        }
+
         document.addEventListener('mousemove', (event) => {
             mousePosition = getMousePosition(canvas, event);
+        });
+
+        document.addEventListener("keypress", (event) => {
+            if (event.code = "Space") {
+                if (controllingStartingCrosshair) {
+                    if (!isValidPosition([mousePosition[0] - xi, mousePosition[1] - yi], L1, L2)) {
+                        invalidStartingCrosshairPosition = true;
+                        setTimeout(function() {
+                            invalidStartingCrosshairPosition = false;
+                        }, 2000);
+                        return;
+                    }
+                    controllingStartingCrosshair = false;
+                    startingCrosshairPlaced = true;
+                } else if (controllingEndingCrosshair) {
+                    if (!isValidPosition([mousePosition[0] - xi, mousePosition[1] - yi], L1, L2)) {
+                        invalidEndingCrosshairPosition = true;
+                        setTimeout(function() {
+                            invalidEndingCrosshairPosition = false;
+                        }, 2000);
+                        return;
+                    }
+                    controllingEndingCrosshair = false;
+                    endingCrosshairPlaced = true;
+               }
+            }
         });
 
         setInterval(function() {
@@ -188,7 +320,40 @@
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            let targetPosition = cursorCheckbox.checked ? mousePosition : [300, 200];
+            let targetPosition = cursor_checkbox.checked ? [mousePosition[0] - xi, mousePosition[1] - yi] : [300, 200];
+
+            if (controllingStartingCrosshair) {
+                startingCrosshairPosition = [mousePosition[0], mousePosition[1]];
+            } else if (controllingEndingCrosshair) {
+                endingCrosshairPosition = [mousePosition[0], mousePosition[1]];
+            }
+
+            if (!cursor_checkbox.checked) {
+                if (controllingStartingCrosshair) {
+                    drawCrosshair(startingCrosshairPosition, "red");
+                    if (invalidStartingCrosshairPosition) {
+                        drawText("Invalid Position", startingCrosshairPosition[0], startingCrosshairPosition[1] + 25, 20, 5, "red");
+                    } else {
+                        drawText("Press Space to Place", startingCrosshairPosition[0], startingCrosshairPosition[1] + 25, 20, 5, "black");       
+                    }
+                } else if (startingCrosshairPlaced) {
+                    drawCrosshair(startingCrosshairPosition, "green");
+                    drawText("Start", startingCrosshairPosition[0], startingCrosshairPosition[1] + 25, 20, 5, "green");
+                }
+
+
+                if (controllingEndingCrosshair) {
+                    drawCrosshair(endingCrosshairPosition, "red");
+                    if (invalidEndingCrosshairPosition) {
+                        drawText("Invalid Position", endingCrosshairPosition[0], endingCrosshairPosition[1] + 25, 20, 5, "red");
+                    } else {
+                        drawText("Press Space to Place", endingCrosshairPosition[0], endingCrosshairPosition[1] + 25, 20, 5, "black");       
+                    }
+                } else if (endingCrosshairPlaced) {
+                    drawCrosshair(endingCrosshairPosition, "green");
+                    drawText("End", endingCrosshairPosition[0], endingCrosshairPosition[1] + 25, 20, 5, "green");
+                }
+            }
 
             let maxPosition = getPosition(Math.atan2(targetPosition[1], targetPosition[0]), L1 + L2 - 0.00000001); //avoids floating point errors
 
@@ -208,7 +373,7 @@
             
             if (isNaN(r0) || isNaN(r1)) {
                 drawText("Not Possible", canvas.width / 2, canvas.height / 2, 100, 30, "red");
-                return;    
+                return;
             }
 
             drawLine(xi, yi, L1, r0, 10, "red");
@@ -217,8 +382,9 @@
             drawArc(xi, yi, 20, 0, -r0, true, 3, "black");
             drawArc(L1 * Math.cos(r0) + xi, L1 * Math.sin(r0) + yi, 20, -r0 - Math.PI, -(r0 + r1 - Math.PI), true, 3, "black");
 
-            drawText((r0 * RADIANS_TO_DEGREES).toFixed(2) + '°', xi + 45, yi + 15, 15, 1, "black");
-            drawText((r1 * RADIANS_TO_DEGREES).toFixed(2) + '°', L1 * Math.cos(r0) + xi + 45, L1 * Math.sin(r0) + yi - 30, 15, 2, "black");            
+            drawText((r0 * RADIANS_TO_DEGREES).toFixed(2) + String.fromCharCode(186), xi + 45, yi + 15, 15, 1, "black");
+            drawText((r1 * RADIANS_TO_DEGREES).toFixed(2) + String.fromCharCode(186), L1 * Math.cos(r0) + xi + 45, L1 * Math.sin(r0) + yi - 30, 15, 2, "black");            
         }, 10);
     </script>
 </body>
+
