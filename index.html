@@ -12,6 +12,13 @@
             overflow: hidden;
         }
 
+        #title {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            top: 5%;
+            left: 50%;
+       }
+
         #canvas {
             float: left;
             width: 100%;
@@ -33,7 +40,6 @@
             left: 50%;
             margin: 0px;
             float: left;
-            border: 1px solid #ff0000;
         }
 
         #inputs {
@@ -55,7 +61,6 @@
         .inputContainer {
             border: 1px solid black;
             padding: 0px;
-            <!--background-color: #fff;-->
         }
 
         .tag {
@@ -65,10 +70,9 @@
 </head>
 
 <body>
-    <h1>Terminal Velocity | Robot Arm Simulation</h1>
     <canvas id="canvas"></canvas>
+    <h1 id="title">Terminal Velocity | Robot Arm Simulation</h1>
     <div id="container">
-        
         <div id="inputs">
             <div id="inputs_left">
                 <div class="inputContainer"> 
@@ -77,11 +81,15 @@
                 </div>
                 <div id="setStartingPosition" class="inputContainer" style="display: none">
                     <h3 class="tag">Set Starting Position</h3>
-                    <button onclick="controllingStartingCrosshair = !controllingStartingCrosshair">Set Starting Position</button>
+                    <button onclick="controllingStartingCrosshair = !controllingStartingCrosshair; startingCrosshairPlaced = false;">Set Starting Position</button>
                 </div>
                 <div id="setEndingPosition" class="inputContainer" style="display: none"> 
                     <h3 class="tag">Set Ending Position</h3>
-                    <button onclick="controllingEndingCrosshair = !controllingEndingCrosshair">Set Ending Position</button>
+                    <button onclick="controllingEndingCrosshair = !controllingEndingCrosshair; endingCrosshairPlaced = false;">Set Ending Position</button>
+                </div>
+                <div id="startArmAnimation" class="inputContainer" style="display: none"> 
+                    <h3 class="tag">Start Arm Animation</h3>
+                    <button onclick="startArmAnimation();">Start Animation</button>
                 </div>
             </div>
             <div id="inputs_right">
@@ -105,6 +113,10 @@
                     <p id="yiTag" class="tag"></p>
                     <input type="range" min="1" max="400" value="50" style="width: 100px" id="yi_input">
                 </div>
+                <div class="inputContainer"> 
+                    <h3 class="tag">Show Valid Arm Positions</h3>
+                    <input style="width: 30px; height: 30px;" type="checkbox" id="showValidPositions">
+                </div>
             </div>
         </div>
     </div>
@@ -117,17 +129,19 @@
         const inputs = document.getElementById("inputs");
         const inputs_left = document.getElementById("inputs_left");
         const inputs_right = document.getElementById("inputs_right");
+        const show_valid_positions = document.getElementById("showValidPositions");
 
         const set_starting_position = document.getElementById("setStartingPosition");
         const set_ending_position = document.getElementById("setEndingPosition");
+        const start_arm_animation = document.getElementById("startArmAnimation");
 
         const cursor_checkbox = document.getElementById("cursorFollowCheckbox");
 
         inputs.style.width = (container.offsetWidth * 0.3) + "px";
         inputs.style.height = container.offsetHeight + "px";
 
-        inputs_left.style.width = (inputs.offsetWidth * 0.5) + "px";
-        inputs_right.style.width = (inputs.offsetWidth * 0.5) + "px";
+        inputs_left.style.width = (inputs.offsetWidth * 0.45) + "px";
+        inputs_right.style.width = (inputs.offsetWidth * 0.45) + "px";
 
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
@@ -156,6 +170,10 @@
 
         let invalidStartingCrosshairPosition = false;
         let invalidEndingCrosshairPosition = false;
+
+        let armAnimationActive = false;
+        let armAnimationStart = false;
+        let timeSinceStart = 0;
 
         L1_input.min = 50;
         L1_input.max = 400;
@@ -213,6 +231,12 @@
                 set_starting_position.style.display =  "none";
                 set_ending_position.style.display =  "none";
             }
+
+            if (!cursor_checkbox.checked && startingCrosshairPlaced && endingCrosshairPlaced) {
+                start_arm_animation.style.display = "";
+            } else {
+                start_arm_animation.style.display = "none";
+            }
         }
 
         function getMousePosition(canvas, event) {
@@ -241,6 +265,14 @@
             ctx.beginPath();
             ctx.arc(x, window.innerHeight - y, radius, startAngle, endAngle, counterclockwise);
             ctx.stroke();
+        }
+
+        function drawFilledCircle(x, y, width, color, radius) {
+            ctx.lineWidth = width;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, window.innerHeight - y, radius, 0, 2 * Math.PI, true);
+            ctx.fill();
         }
 
         function drawText(text, x, y, size, width, color) {
@@ -285,18 +317,37 @@
             return !(isNaN(r0) || isNaN(r1));
         }
 
+        function getAnimationPosition(frameTime, totalTime, startingCrosshairPosition, endingCrosshairPosition, clockwise) {
+            const partOfTime = frameTime / totalTime;
+
+            const startingCrosshairDistance = Math.sqrt(Math.pow(startingCrosshairPosition[0], 2) + Math.pow(startingCrosshairPosition[1], 2));
+            const endingCrosshairDistance = Math.sqrt(Math.pow(endingCrosshairPosition[0], 2) + Math.pow(endingCrosshairPosition[1], 2));
+            const targetDistance = startingCrosshairDistance + (endingCrosshairDistance - startingCrosshairDistance) * partOfTime;
+
+            const startingCrosshairAngle = Math.atan2(startingCrosshairPosition[1], startingCrosshairPosition[0]);
+            const endingCrosshairAngle  = Math.atan2(endingCrosshairPosition[1], endingCrosshairPosition[0]);
+            const targetAngle = startingCrosshairAngle + (endingCrosshairAngle - startingCrosshairAngle) * partOfTime;
+
+            return getPosition(targetAngle, targetDistance);
+        }
+
         document.addEventListener('mousemove', (event) => {
             mousePosition = getMousePosition(canvas, event);
         });
+
+        function startArmAnimation() {
+            if (startingCrosshairPlaced && endingCrosshairPlaced) {
+                armAnimationStart = true;
+            } else {
+                alert("Cannot Start Without Starting And Ending Marks");
+            }
+        }
 
         document.addEventListener("keypress", (event) => {
             if (event.code = "Space") {
                 if (controllingStartingCrosshair) {
                     if (!isValidPosition([mousePosition[0] - xi, mousePosition[1] - yi], L1, L2)) {
                         invalidStartingCrosshairPosition = true;
-                        setTimeout(function() {
-                            invalidStartingCrosshairPosition = false;
-                        }, 2000);
                         return;
                     }
                     controllingStartingCrosshair = false;
@@ -304,9 +355,6 @@
                 } else if (controllingEndingCrosshair) {
                     if (!isValidPosition([mousePosition[0] - xi, mousePosition[1] - yi], L1, L2)) {
                         invalidEndingCrosshairPosition = true;
-                        setTimeout(function() {
-                            invalidEndingCrosshairPosition = false;
-                        }, 2000);
                         return;
                     }
                     controllingEndingCrosshair = false;
@@ -318,14 +366,44 @@
         setInterval(function() {
             updateInputsAndTags();
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (show_valid_positions.checked) {
+                ctx.fillStyle = "#ff8888";
+                ctx.beginPath();
+
+                ctx.rect(0, 0, canvas.width, canvas.height);
+
+                ctx.fill();
+
+                drawFilledCircle(xi, yi, 0, "#88ff88", L1 + L2);
+                drawFilledCircle(xi, yi, 0, "#ff8888", Math.abs(L1 - L2));
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+
+            if (armAnimationStart) {
+                timeSinceStart = 0;
+                armAnimationActive = true;
+                armAnimationStart = false;
+            }
 
             let targetPosition = cursor_checkbox.checked ? [mousePosition[0] - xi, mousePosition[1] - yi] : [300, 200];
 
+            if (armAnimationActive) {
+                timeSinceStart += 10;
+                targetPosition = getAnimationPosition(timeSinceStart, 2000, startingCrosshairPosition, endingCrosshairPosition, true);
+                targetPosition[0] -= xi;
+                targetPosition[1] -= yi;
+            }
+
+            if (timeSinceStart == 2000) {
+                armAnimationActive = false;
+                timeSinceStart = 0;
+            }
+
             if (controllingStartingCrosshair) {
-                startingCrosshairPosition = [mousePosition[0], mousePosition[1]];
+                startingCrosshairPosition = mousePosition;
             } else if (controllingEndingCrosshair) {
-                endingCrosshairPosition = [mousePosition[0], mousePosition[1]];
+                endingCrosshairPosition = mousePosition;
             }
 
             if (!cursor_checkbox.checked) {
@@ -340,7 +418,6 @@
                     drawCrosshair(startingCrosshairPosition, "green");
                     drawText("Start", startingCrosshairPosition[0], startingCrosshairPosition[1] + 25, 20, 5, "green");
                 }
-
 
                 if (controllingEndingCrosshair) {
                     drawCrosshair(endingCrosshairPosition, "red");
@@ -358,7 +435,7 @@
             let maxPosition = getPosition(Math.atan2(targetPosition[1], targetPosition[0]), L1 + L2 - 0.00000001); //avoids floating point errors
 
             if (Math.abs(targetPosition[0]) > Math.abs(maxPosition[0]) || Math.abs(targetPosition[1]) > Math.abs(maxPosition[1])) {
-                drawText("Unable to Reach", canvas.width / 2, canvas.height / 1.2, 75, 30, "red");
+                drawText("Not Possible", canvas.width / 2, canvas.height / 2, 100, 30, "red");
                 targetPosition = maxPosition;
             }
 
@@ -376,15 +453,14 @@
                 return;
             }
 
-            drawLine(xi, yi, L1, r0, 10, "red");
-            drawLine(L1 * Math.cos(r0) + xi, L1 * Math.sin(r0) + yi, L2, (r0 + r1 - Math.PI), 10, "green");
+            drawLine(xi, yi, L1, r0, 10, "#00a2f5");
+            drawLine(L1 * Math.cos(r0) + xi, L1 * Math.sin(r0) + yi, L2, (r0 + r1 - Math.PI), 10, "#00a2f5");
 
             drawArc(xi, yi, 20, 0, -r0, true, 3, "black");
             drawArc(L1 * Math.cos(r0) + xi, L1 * Math.sin(r0) + yi, 20, -r0 - Math.PI, -(r0 + r1 - Math.PI), true, 3, "black");
 
             drawText((r0 * RADIANS_TO_DEGREES).toFixed(2) + String.fromCharCode(186), xi + 45, yi + 15, 15, 1, "black");
-            drawText((r1 * RADIANS_TO_DEGREES).toFixed(2) + String.fromCharCode(186), L1 * Math.cos(r0) + xi + 45, L1 * Math.sin(r0) + yi - 30, 15, 2, "black");            
+            drawText((r1 * RADIANS_TO_DEGREES).toFixed(2) + String.fromCharCode(186), L1 * Math.cos(r0) + xi + 45, L1 * Math.sin(r0) + yi - 30, 15, 2, "black");
         }, 10);
     </script>
-</body>
-
+</body
