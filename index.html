@@ -199,7 +199,7 @@
         let xi;
         let yi;
 
-        let mousePosition = [200, 200];
+        let mousePosition = [400, 500];
 
         updateInputsAndTags();
 
@@ -248,6 +248,10 @@
 
         function getPosition(radians, length) {
             return [length  * Math.cos(radians), length * Math.sin(radians)];
+        }
+
+        function getDistance(x, y) {
+            return Math.sqrt(x * x + y * y);
         }
 
         function drawLine(x, y, length, radians, width, color) {
@@ -320,15 +324,15 @@
         function getAnimationPosition(frameTime, totalTime, startingCrosshairPosition, endingCrosshairPosition, clockwise) {
             const partOfTime = frameTime / totalTime;
 
-            const startingCrosshairDistance = Math.sqrt(Math.pow(startingCrosshairPosition[0], 2) + Math.pow(startingCrosshairPosition[1], 2));
-            const endingCrosshairDistance = Math.sqrt(Math.pow(endingCrosshairPosition[0], 2) + Math.pow(endingCrosshairPosition[1], 2));
-            const targetDistance = startingCrosshairDistance + (endingCrosshairDistance - startingCrosshairDistance) * partOfTime;
-
-            const startingCrosshairAngle = Math.atan2(startingCrosshairPosition[1], startingCrosshairPosition[0]);
-            const endingCrosshairAngle  = Math.atan2(endingCrosshairPosition[1], endingCrosshairPosition[0]);
+            const startingCrosshairAngle = Math.atan2(startingCrosshairPosition[1] - yi, startingCrosshairPosition[0] - xi);
+            const endingCrosshairAngle  = Math.atan2(endingCrosshairPosition[1] - yi, endingCrosshairPosition[0] - xi);
             const targetAngle = startingCrosshairAngle + (endingCrosshairAngle - startingCrosshairAngle) * partOfTime;
 
-            return getPosition(targetAngle, targetDistance);
+            const startingCrosshairDistance = getDistance(startingCrosshairPosition[0] - xi, startingCrosshairPosition[1] - yi);
+            const endingCrosshairDistance = getDistance(endingCrosshairPosition[0] - xi, endingCrosshairPosition[1] - yi);
+            const targetDistance = startingCrosshairDistance + (endingCrosshairDistance - startingCrosshairDistance) * partOfTime;
+
+            return [getPosition(targetAngle, targetDistance)[0] + xi, getPosition(targetAngle, targetDistance)[1] + yi];
         }
 
         document.addEventListener('mousemove', (event) => {
@@ -369,9 +373,7 @@
             if (show_valid_positions.checked) {
                 ctx.fillStyle = "#ff8888";
                 ctx.beginPath();
-
                 ctx.rect(0, 0, canvas.width, canvas.height);
-
                 ctx.fill();
 
                 drawFilledCircle(xi, yi, 0, "#88ff88", L1 + L2);
@@ -434,11 +436,16 @@
 
             let maxPosition = getPosition(Math.atan2(targetPosition[1], targetPosition[0]), L1 + L2 - 0.00000001); //avoids floating point errors
 
-            if (Math.abs(targetPosition[0]) > Math.abs(maxPosition[0]) || Math.abs(targetPosition[1]) > Math.abs(maxPosition[1])) {
-                drawText("Not Possible", canvas.width / 2, canvas.height / 2, 100, 30, "red");
-                targetPosition = maxPosition;
-            }
+            const maxDistance = L1 + L2 - 0.00000001; //avoids floating point errors
+            const minDistance = Math.abs(L1 - L2) + 0.00000001; //avoids floating point errors
+            const targetDistance = getDistance(targetPosition[0], targetPosition[1]);
+            let validDistance = Math.max(Math.min(targetDistance, maxDistance), minDistance);
 
+           if (validDistance != targetDistance) {
+               drawText("Not Possible", canvas.width / 2, canvas.height / 2, 100, 30, "red");
+               targetPosition = getPosition(Math.atan2(targetPosition[1], targetPosition[0]), validDistance);
+           }
+            
             let L3 = Math.sqrt(Math.pow(targetPosition[0], 2) + Math.pow(targetPosition[1], 2));
 
             let L1sq = L1 * L1;
@@ -447,11 +454,6 @@
 
             let r0 = Math.acos((L1sq + L3sq - L2sq) / (2 * L1 * L3)) + Math.atan2(targetPosition[1], targetPosition[0]);
             let r1 = Math.acos((L1sq + L2sq - L3sq) / (2 * L1 * L2));
-            
-            if (isNaN(r0) || isNaN(r1)) {
-                drawText("Not Possible", canvas.width / 2, canvas.height / 2, 100, 30, "red");
-                return;
-            }
 
             drawLine(xi, yi, L1, r0, 10, "#00a2f5");
             drawLine(L1 * Math.cos(r0) + xi, L1 * Math.sin(r0) + yi, L2, (r0 + r1 - Math.PI), 10, "#00a2f5");
@@ -463,4 +465,4 @@
             drawText((r1 * RADIANS_TO_DEGREES).toFixed(2) + String.fromCharCode(186), L1 * Math.cos(r0) + xi + 45, L1 * Math.sin(r0) + yi - 30, 15, 2, "black");
         }, 10);
     </script>
-</body
+</body>
