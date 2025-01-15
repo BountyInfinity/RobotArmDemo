@@ -81,7 +81,7 @@
                 </div>
                 <div id="setStartingPosition" class="inputContainer" style="display: none">
                     <h3 class="tag">Set Starting Position</h3>
-                    <button onclick="controllingStartingCrosshair = !controllingStartingCrosshair; startingCrosshairPlaced = false;">Set Starting Position</button>
+                    <button onclick="controllingStartingCrosshair = !controllingStartingCrosshair; startingCrosshairPlaced = false; set_starting_position.disabled = true">Set Starting Position</button>
                 </div>
                 <div id="setEndingPosition" class="inputContainer" style="display: none"> 
                     <h3 class="tag">Set Ending Position</h3>
@@ -348,7 +348,7 @@
         }
 
         document.addEventListener("keypress", (event) => {
-            if (event.code = "Space") {
+            if (event.code = "KeyP") {
                 if (controllingStartingCrosshair) {
                     if (!isValidPosition([mousePosition[0] - xi, mousePosition[1] - yi], L1, L2)) {
                         invalidStartingCrosshairPosition = true;
@@ -414,7 +414,7 @@
                     if (invalidStartingCrosshairPosition) {
                         drawText("Invalid Position", startingCrosshairPosition[0], startingCrosshairPosition[1] + 25, 20, 5, "red");
                     } else {
-                        drawText("Press Space to Place", startingCrosshairPosition[0], startingCrosshairPosition[1] + 25, 20, 5, "black");       
+                        drawText("Press 'P' to Place", startingCrosshairPosition[0], startingCrosshairPosition[1] + 25, 20, 5, "black");       
                     }
                 } else if (startingCrosshairPlaced) {
                     drawCrosshair(startingCrosshairPosition, "green");
@@ -426,15 +426,13 @@
                     if (invalidEndingCrosshairPosition) {
                         drawText("Invalid Position", endingCrosshairPosition[0], endingCrosshairPosition[1] + 25, 20, 5, "red");
                     } else {
-                        drawText("Press Space to Place", endingCrosshairPosition[0], endingCrosshairPosition[1] + 25, 20, 5, "black");       
+                        drawText("Press 'P' to Place", endingCrosshairPosition[0], endingCrosshairPosition[1] + 25, 20, 5, "black");       
                     }
                 } else if (endingCrosshairPlaced) {
                     drawCrosshair(endingCrosshairPosition, "green");
                     drawText("End", endingCrosshairPosition[0], endingCrosshairPosition[1] + 25, 20, 5, "green");
                 }
             }
-
-            let maxPosition = getPosition(Math.atan2(targetPosition[1], targetPosition[0]), L1 + L2 - 0.00000001); //avoids floating point errors
 
             const maxDistance = L1 + L2 - 0.00000001; //avoids floating point errors
             const minDistance = Math.abs(L1 - L2) + 0.00000001; //avoids floating point errors
